@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDM Lifecycle Wheel Game</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #E5E5E5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        .wheel-container {
+            position: relative;
+            margin: 20px auto;
+        }
+
+        #wheel {
+            transition: transform 3s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .pointer {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 25px solid #045C64;
+            z-index: 10;
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        button {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #3182ce;
+        }
+
+        button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+
+        #startQuizBtn {
+            background: #045C64;
+        }
+
+        #startQuizBtn:hover {
+            background: #034A52;
+        }
+
+        .question-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .question-section.active {
+            display: block;
+        }
+
+        .question {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+
+        .answer-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .answer-btn {
+            background: #48bb78;
+        }
+
+        .answer-btn:hover {
+            background: #38a169;
+        }
+
+        .answer-btn.no {
+            background: #f56565;
+        }
+
+        .answer-btn.no:hover {
+            background: #e53e3e;
+        }
+
+        .score {
+            font-size: 18px;
+            margin: 10px 0;
+            color: #4a5568;
+        }
+
+        .feedback {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .feedback.correct {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .feedback.incorrect {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .selected-area {
+            background: #e6fffa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #38b2ac;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>RDM Lifecycle Wheel Game</h1>
+        <p>Spin the wheel to select a RDM area, then answer 3 questions!</p>
+        
+        <div class="wheel-container">
+            <div class="pointer"></div>
+            <svg id="wheel" width="400" height="400" viewBox="0 0 400 400">
+                <!-- Wheel segments will be created here -->
+            </svg>
+        </div>
+
+        <div class="controls">
+            <button id="spinBtn">🎯 Spin the Wheel!</button>
+            <button id="startQuizBtn" style="display: none;">📝 Start Quiz</button>
+        </div>
+
+        <div id="selectedArea" class="selected-area" style="display: none;">
+            <h3 id="areaTitle"></h3>
+            <p id="areaDescription"></p>
+        </div>
+
+        <div id="questionSection" class="question-section">
+            <div class="score">Question <span id="currentQ">1</span> of 3 | Score: <span id="score">0</span>/3</div>
+            <div id="question" class="question"></div>
+            <div class="answer-buttons">
+                <button id="yesBtn" class="answer-btn">✅ Yes</button>
+                <button id="noBtn" class="answer-btn no">❌ No</button>
+            </div>
+            <div id="feedback" class="feedback" style="display: none;"></div>
+        </div>
+
+        <div id="results" style="display: none;">
+            <h2 id="resultTitle"></h2>
+            <p id="resultText"></p>
+            <button onclick="location.reload()">🔄 Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // RDM Lifecycle Areas - colors and descriptions
+        const AREA_CONFIG = {
+            'plan': { title: 'Plan', color: '#4C979F', description: 'Planning your data management approach' },
+            'collect': { title: 'Collect', color: '#5BA4AB', description: 'Collecting and documenting your data' },
+            'process': { title: 'Process', color: '#3F8A92', description: 'Processing and transforming your data' },
+            'analyse': { title: 'Analyse', color: '#67B3BA', description: 'Analyzing your data and generating insights' },
+            'preserve': { title: 'Preserve', color: '#2F7981', description: 'Preserving your data for the long term' },
+            'share': { title: 'Share & Publish', color: '#8AC6CC', description: 'Sharing and publishing your data' },
+            'reuse': { title: 'Reuse', color: '#319795', description: 'Reusing data from others and enabling reuse of yours' }
+        };
+
+        let RDM_AREAS = [];
+
+        // Parse questions from markdown
+        async function loadQuestions() {
+            try {
+                const response = await fetch('questions.md');
+                const text = await response.text();
+                
+                const areas = {};
+                let currentArea = null;
+                
+                const lines = text.split('\n');
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    
+                    // Section header: ## key - Title
+                    const sectionMatch = trimmed.match(/^##\s*(\w+)\s*-\s*(.+)$/);
+                    if (sectionMatch) {
+                        currentArea = sectionMatch[1].toLowerCase();
+                        const config = AREA_CONFIG[currentArea];
+                        if (config) {
+                            areas[currentArea] = {
+                                key: currentArea,
+                                title: config.title,
+                                color: config.color,
+                                description: config.description,
+                                questions: []
+                            };
+                        }
+                        continue;
+                    }
+                    
+                    // Question line: - [yes|no] question :: explanation
+                    const questionMatch = trimmed.match(/^-\s*\[(\w+)\]\s*(.+?)\s*::\s*(.+)$/);
+                    if (questionMatch && currentArea && areas[currentArea]) {
+                        const answer = questionMatch[1].toLowerCase();
+                        const question = questionMatch[2].trim();
+                        const explanation = questionMatch[3].trim();
+                        
+                        areas[currentArea].questions.push({
+                            q: question,
+                            a: answer,
+                            why: explanation
+                        });
+                    }
+                }
+                
+                // Convert to array in the correct order
+                const areaOrder = ['plan', 'collect', 'process', 'analyse', 'preserve', 'share', 'reuse'];
+                RDM_AREAS = areaOrder.map(key => areas[key]).filter(area => area && area.questions.length > 0);
+                
+                return RDM_AREAS;
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                // Fallback to empty areas if file can't be loaded
+                return [];
+            }
+        }
+
+        // Game state
+        let currentArea = null;
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isSpinning = false;
+
+        // DOM elements
+        const wheel = document.getElementById('wheel');
+        const spinBtn = document.getElementById('spinBtn');
+        const startQuizBtn = document.getElementById('startQuizBtn');
+        const selectedAreaDiv = document.getElementById('selectedArea');
+        const areaTitle = document.getElementById('areaTitle');
+        const areaDescription = document.getElementById('areaDescription');
+        const questionSection = document.getElementById('questionSection');
+        const questionDiv = document.getElementById('question');
+        const yesBtn = document.getElementById('yesBtn');
+        const noBtn = document.getElementById('noBtn');
+        const feedbackDiv = document.getElementById('feedback');
+        const scoreSpan = document.getElementById('score');
+        const currentQSpan = document.getElementById('currentQ');
+        const results = document.getElementById('results');
+
+        // Create the wheel
+        function createWheel() {
+            const centerX = 200;
+            const centerY = 200;
+            const radius = 180;
+            const innerRadius = 50;
+            
+            RDM_AREAS.forEach((area, index) => {
+                const startAngle = (index * 360 / RDM_AREAS.length) - 90;
+                const endAngle = ((index + 1) * 360 / RDM_AREAS.length) - 90;
+                
+                // Create wedge path
+                const startAngleRad = (startAngle * Math.PI) / 180;
+                const endAngleRad = (endAngle * Math.PI) / 180;
+                
+                const x1 = centerX + radius * Math.cos(startAngleRad);
+                const y1 = centerY + radius * Math.sin(startAngleRad);
+                const x2 = centerX + radius * Math.cos(endAngleRad);
+                const y2 = centerY + radius * Math.sin(endAngleRad);
+                
+                const x3 = centerX + innerRadius * Math.cos(endAngleRad);
+                const y3 = centerY + innerRadius * Math.sin(endAngleRad);
+                const x4 = centerX + innerRadius * Math.cos(startAngleRad);
+                const y4 = centerY + innerRadius * Math.sin(startAngleRad);
+                
+                const largeArcFlag = (endAngle - startAngle) > 180 ? 1 : 0;
+                
+                const pathData = [
+                    `M ${x1} ${y1}`,
+                    `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                    `L ${x3} ${y3}`,
+                    `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${x4} ${y4}`,
+                    'Z'
+                ].join(' ');
+                
+                // Create path element
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('fill', area.color);
+                path.setAttribute('stroke', 'white');
+                path.setAttribute('stroke-width', '3');
+                wheel.appendChild(path);
+                
+                // Add text label
+                const textAngle = (startAngle + endAngle) / 2;
+                const textRadius = (radius + innerRadius) / 2;
+                const textX = centerX + textRadius * Math.cos((textAngle * Math.PI) / 180);
+                const textY = centerY + textRadius * Math.sin((textAngle * Math.PI) / 180);
+                
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', textX);
+                text.setAttribute('y', textY);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('dominant-baseline', 'middle');
+                text.setAttribute('fill', 'white');
+                text.setAttribute('font-weight', 'bold');
+                text.setAttribute('font-size', '14');
+                text.textContent = area.title;
+                wheel.appendChild(text);
+            });
+            
+            // Add center circle
+            const center = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            center.setAttribute('cx', centerX);
+            center.setAttribute('cy', centerY);
+            center.setAttribute('r', innerRadius);
+            center.setAttribute('fill', 'white');
+            center.setAttribute('stroke', '#2d3748');
+            center.setAttribute('stroke-width', '3');
+            wheel.appendChild(center);
+            
+            // Add logo in center with circular clipping
+            const logoSize = innerRadius * 1.8;
+            
+            // Create circular clipping path
+            const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+            clipPath.setAttribute('id', 'logoClip');
+            const clipCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            clipCircle.setAttribute('cx', centerX);
+            clipCircle.setAttribute('cy', centerY);
+            clipCircle.setAttribute('r', innerRadius - 5);
+            clipPath.appendChild(clipCircle);
+            wheel.appendChild(clipPath);
+            
+            // Add logo with clipping
+            const logo = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+            logo.setAttribute('href', 'logo.jpg');
+            logo.setAttribute('x', centerX - (logoSize / 2));
+            logo.setAttribute('y', centerY - (logoSize / 2));
+            logo.setAttribute('width', logoSize);
+            logo.setAttribute('height', logoSize);
+            logo.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+            logo.setAttribute('clip-path', 'url(#logoClip)');
+            wheel.appendChild(logo);
+        }
+
+        // Spin the wheel
+        function spinWheel() {
+            if (isSpinning) return;
+            
+            isSpinning = true;
+            spinBtn.disabled = true;
+            
+            // Random rotation (multiple full spins + random position)
+            const spins = 5 + Math.random() * 5;
+            const finalAngle = spins * 360 + Math.random() * 360;
+            
+            wheel.style.transform = `rotate(${finalAngle}deg)`;
+            
+            // Determine which area was selected
+            setTimeout(() => {
+                const normalizedAngle = (360 - (finalAngle % 360)) % 360;
+                const segmentAngle = 360 / RDM_AREAS.length;
+                const selectedIndex = Math.floor(normalizedAngle / segmentAngle);
+                
+                currentArea = RDM_AREAS[selectedIndex];
+                showSelectedArea();
+                
+                isSpinning = false;
+                startQuizBtn.style.display = 'inline-block';
+            }, 3000);
+        }
+
+        // Show selected area
+        function showSelectedArea() {
+            areaTitle.textContent = currentArea.title;
+            areaDescription.textContent = currentArea.description;
+            selectedAreaDiv.style.display = 'block';
+        }
+
+        // Start quiz
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            updateScore();
+            questionSection.classList.add('active');
+            startQuizBtn.style.display = 'none';
+            selectedAreaDiv.style.display = 'none';
+            showQuestion();
+        }
+
+        // Show current question
+        function showQuestion() {
+            const question = currentArea.questions[currentQuestionIndex];
+            questionDiv.textContent = question.q;
+            currentQSpan.textContent = currentQuestionIndex + 1;
+            feedbackDiv.style.display = 'none';
+            yesBtn.disabled = false;
+            noBtn.disabled = false;
+        }
+
+        // Answer question
+        function answerQuestion(answer) {
+            const question = currentArea.questions[currentQuestionIndex];
+            const isCorrect = answer === question.a;
+            
+            yesBtn.disabled = true;
+            noBtn.disabled = true;
+            
+            if (isCorrect) {
+                score++;
+                feedbackDiv.textContent = '✅ Correct!';
+                feedbackDiv.className = 'feedback correct';
+            } else {
+                feedbackDiv.textContent = `❌ Incorrect. ${question.why}`;
+                feedbackDiv.className = 'feedback incorrect';
+            }
+            
+            feedbackDiv.style.display = 'block';
+            updateScore();
+            
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < 3) {
+                    showQuestion();
+                } else {
+                    showResults();
+                }
+            }, 3000);
+        }
+
+        // Update score display
+        function updateScore() {
+            scoreSpan.textContent = score;
+        }
+
+        // Show final results
+        function showResults() {
+            questionSection.classList.remove('active');
+            
+            const resultTitle = document.getElementById('resultTitle');
+            const resultText = document.getElementById('resultText');
+            
+            if (score === 3) {
+                resultTitle.textContent = '🎉 Perfect Score!';
+                resultText.textContent = `Congratulations! You got all 3 questions right about ${currentArea.title}. You're a data management expert!`;
+            } else if (score === 2) {
+                resultTitle.textContent = '👍 Great Job!';
+                resultText.textContent = `Well done! You got ${score} out of 3 questions right about ${currentArea.title}. Almost perfect!`;
+            } else if (score === 1) {
+                resultTitle.textContent = '📚 Keep Learning!';
+                resultText.textContent = `You got ${score} out of 3 questions right about ${currentArea.title}. There's room for improvement!`;
+            } else {
+                resultTitle.textContent = '🤔 Try Again!';
+                resultText.textContent = `You got ${score} out of 3 questions right about ${currentArea.title}. Don't worry, data management takes practice!`;
+            }
+            
+            results.style.display = 'block';
+        }
+
+        // Event listeners
+        spinBtn.addEventListener('click', spinWheel);
+        startQuizBtn.addEventListener('click', startQuiz);
+        yesBtn.addEventListener('click', () => answerQuestion('yes'));
+        noBtn.addEventListener('click', () => answerQuestion('no'));
+
+        // Initialize the game
+        async function initializeGame() {
+            try {
+                await loadQuestions();
+                console.log('Loaded areas:', RDM_AREAS.length);
+                if (RDM_AREAS.length > 0) {
+                    createWheel();
+                } else {
+                    console.error('No areas loaded, falling back to hardcoded data');
+                    loadFallbackData();
+                    createWheel();
+                }
+            } catch (error) {
+                console.error('Failed to initialize game:', error);
+                loadFallbackData();
+                createWheel();
+            }
+        }
+
+        // Fallback data in case markdown file can't be loaded
+        function loadFallbackData() {
+            RDM_AREAS = [
+                {
+                    key: 'plan',
+                    title: 'Plan',
+                    color: '#4C979F',
+                    description: 'Planning your data management approach',
+                    questions: [
+                        { q: 'Should a Data Management Plan (DMP) be started before data collection begins?', a: 'yes', why: 'A DMP guides consent, formats, storage, and sharing decisions from day one.' },
+                        { q: 'Is choosing file formats only a concern after analysis is complete?', a: 'no', why: 'Sustainable, open formats should be chosen up front to avoid costly migrations.' },
+                        { q: 'Do funders often require a DMP at proposal stage?', a: 'yes', why: 'Many funders mandate a DMP with the grant application.' }
+                    ]
+                },
+                {
+                    key: 'collect',
+                    title: 'Collect',
+                    color: '#5BA4AB',
+                    description: 'Collecting and documenting your data',
+                    questions: [
+                        { q: 'Should you record metadata as you collect data (not afterwards)?', a: 'yes', why: 'Real-time metadata avoids loss of context and improves reproducibility.' },
+                        { q: 'Is it okay to skip consent documentation if data look anonymous?', a: 'no', why: 'Ethics and legal compliance require documented consent when applicable.' },
+                        { q: 'Are controlled vocabularies helpful when naming variables?', a: 'yes', why: 'Shared vocabularies make data interoperable and easier to reuse.' }
+                    ]
+                },
+                {
+                    key: 'process',
+                    title: 'Process',
+                    color: '#3F8A92',
+                    description: 'Processing and transforming your data',
+                    questions: [
+                        { q: 'Should you keep raw data immutable and process copies?', a: 'yes', why: 'Raw data are the ground truth; processing should be reproducible on copies.' },
+                        { q: 'Is it fine to do manual changes without logging them?', a: 'no', why: 'Every transformation must be tracked for provenance and auditability.' },
+                        { q: 'Can workflow automation help reduce errors in processing?', a: 'yes', why: 'Pipelines and scripts reduce human error and improve repeatability.' }
+                    ]
+                },
+                {
+                    key: 'analyse',
+                    title: 'Analyse',
+                    color: '#67B3BA',
+                    description: 'Analyzing your data and generating insights',
+                    questions: [
+                        { q: 'Should analysis environments (versions, seeds) be documented?', a: 'yes', why: 'Documented environments enable others to reproduce figures and results.' },
+                        { q: 'Is p-hacking an acceptable way to find significant results?', a: 'no', why: 'Selective reporting biases conclusions and violates good scientific practice.' },
+                        { q: 'Is it good practice to link analysis code to the dataset it uses?', a: 'yes', why: 'Tight linkage improves transparency and reproducibility.' }
+                    ]
+                },
+                {
+                    key: 'preserve',
+                    title: 'Preserve',
+                    color: '#2F7981',
+                    description: 'Preserving your data for the long term',
+                    questions: [
+                        { q: 'Does long-term preservation require more than local lab storage?', a: 'yes', why: 'Repositories and institutional storage provide durability and stewardship.' },
+                        { q: 'Is one backup in the same room as the originals enough?', a: 'no', why: 'Follow 3-2-1: 3 copies, 2 media, 1 offsite.' },
+                        { q: 'Do persistent identifiers (like DOIs) help with preservation?', a: 'yes', why: 'PIDs ensure long-term findability and stable citation.' }
+                    ]
+                },
+                {
+                    key: 'share',
+                    title: 'Share & Publish',
+                    color: '#8AC6CC',
+                    description: 'Sharing and publishing your data',
+                    questions: [
+                        { q: 'Should you choose a license when you share your dataset?', a: 'yes', why: 'Licenses tell others how they can reuse your data.' },
+                        { q: 'Is it okay to upload sensitive data to any public repository?', a: 'no', why: 'Sensitive data require controlled access and appropriate repositories.' },
+                        { q: 'Do rich metadata increase discoverability when publishing?', a: 'yes', why: 'Good descriptions and keywords help others find your dataset.' }
+                    ]
+                },
+                {
+                    key: 'reuse',
+                    title: 'Reuse',
+                    color: '#319795',
+                    description: 'Reusing data from others and enabling reuse of yours',
+                    questions: [
+                        { q: 'Should you cite datasets you reuse, like you cite papers?', a: 'yes', why: 'Proper citation credits creators and tracks impact.' },
+                        { q: 'If metadata are unclear, should you ignore restrictions?', a: 'no', why: 'Always respect licensing and access terms; clarify before use.' },
+                        { q: 'Is reusability improved by open formats and clear provenance?', a: 'yes', why: 'Open formats + provenance enable integration and verification.' }
+                    ]
+                }
+            ];
+        }
+
+        // Start the game when page loads
+        initializeGame();
+    </script>
+</body>
+</html> 

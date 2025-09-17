@@ -3,8 +3,8 @@
 ## plan - Plan
 - [yes] Should a Data Management Plan (DMP) be started before data collection begins? :: A DMP guides consent, formats, storage, and sharing decisions from day one.
 - [no] Is choosing file formats only a concern after analysis is complete? :: Sustainable, open formats should be chosen up front to avoid costly migrations.
-- [yes] Do funders often require a DMP at proposal stage? :: Many funders mandate a DMP with the grant application.
 - [yes] Can Data Stewardship Wizzard be used for creating Data Management Plans? :: Data Stewardship Wizzard is a perfect tool for creating Data Management Plans.
+- [yes] Do funders often require a DMP at proposal stage? :: Many funders mandate a DMP with the grant application.
 
 ## collect - Collect
 - [yes] Should you record metadata as you collect data (not afterwards)? :: Real-time metadata avoids loss of context and improves reproducibility.
